@@ -1,0 +1,207 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {uid}
+    // Fields:
+    //   - uid: string (required)
+    //   - displayName: string (optional)
+    //   - email: string (required, email format)
+    //   - photoURL: string (optional)
+    //   - role: string (required, 'student' | 'admin')
+    //   - department: string (optional)
+    //   - phone: string (optional)
+    //
+    // Collection: studios
+    // Document ID: {studioId}
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required)
+    //   - type: string (optional)
+    //   - description: string (optional)
+    //   - status: string (required, 'available' | 'occupied' | 'maintenance')
+    //   - image: string (optional)
+    //
+    // Collection: bookings
+    // Document ID: {bookingId}
+    // Fields:
+    //   - id: string (required)
+    //   - studioId: string (required)
+    //   - studioName: string (required)
+    //   - userId: string (required)
+    //   - userName: string (required)
+    //   - userEmail: string (required, email format)
+    //   - userPhone: string (optional)
+    //   - userDepartment: string (optional)
+    //   - date: string (required, YYYY-MM-DD)
+    //   - startTime: string (required)
+    //   - endTime: string (required)
+    //   - title: string (required)
+    //   - notes: string (optional)
+    //   - status: string (required, 'pending' | 'confirmed' | 'cancelled')
+    //   - createdAt: timestamp (required)
+    //
+    // Collection: allowed_users
+    // Document ID: {emailId}
+    // Fields:
+    //   - code: string (required)
+    //   - position: string (required)
+    //   - name: string (required)
+    //   - email: string (required, email format)
+    //   - phone: string (required)
+    //   - department: string (required)
+    //
+    // Collection: staff
+    // Document ID: {staffId}
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required)
+    //   - email: string (required, email format)
+    //   - phone: string (optional)
+    //   - status: string (required, 'active' | 'inactive')
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (request.auth.token.email == "kulachet.l@bu.ac.th" ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}$");
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['uid', 'displayName', 'email', 'photoURL', 'role', 'department', 'phone', 'position', 'code']) &&
+        data.uid is string &&
+        data.email is string && isValidEmail(data.email) &&
+        data.role in ['student', 'admin'];
+    }
+
+    function isValidStudio(data) {
+      return hasOnlyAllowedFields(['id', 'name', 'type', 'description', 'status', 'image']) &&
+        data.id is string &&
+        data.name is string &&
+        data.status in ['available', 'occupied', 'maintenance'];
+    }
+
+    function isValidBooking(data) {
+      return hasOnlyAllowedFields(['id', 'studioId', 'studioName', 'userId', 'userName', 'userEmail', 'userPhone', 'userDepartment', 'date', 'startTime', 'endTime', 'title', 'notes', 'status', 'createdAt', 'updatedAt', 'assignedStaffIds', 'assignedStaffNames', 'assignedStaffId', 'assignedStaffName', 'userCode', 'userPosition']) &&
+        data.id is string &&
+        data.studioId is string &&
+        data.studioName is string &&
+        data.userId is string &&
+        data.userName is string &&
+        data.userEmail is string && isValidEmail(data.userEmail) &&
+        (!('userPhone' in data) || data.userPhone is string) &&
+        (!('userDepartment' in data) || data.userDepartment is string) &&
+        (!('userCode' in data) || data.userCode is string) &&
+        (!('userPosition' in data) || data.userPosition is string) &&
+        data.date is string && isValidDateString(data.date) &&
+        data.startTime is string &&
+        data.endTime is string &&
+        data.title is string &&
+        (!('notes' in data) || data.notes is string) &&
+        data.status in ['pending', 'confirmed', 'cancelled'] &&
+        data.createdAt is timestamp &&
+        (!('updatedAt' in data) || data.updatedAt is timestamp) &&
+        (!('assignedStaffIds' in data) || data.assignedStaffIds is list) &&
+        (!('assignedStaffNames' in data) || data.assignedStaffNames is list) &&
+        (!('assignedStaffId' in data) || data.assignedStaffId is string) &&
+        (!('assignedStaffName' in data) || data.assignedStaffName is string);
+    }
+
+    function isValidAllowedUser(data) {
+      return (!('code' in data) || data.code is string || data.code == null) &&
+        data.email is string && isValidEmail(data.email);
+    }
+
+    function isValidStaff(data) {
+      return data.id is string &&
+        data.name is string &&
+        data.email is string && isValidEmail(data.email) &&
+        data.status in ['active', 'inactive'];
+    }
+
+    function isValidBlockedDate(data) {
+      return hasOnlyAllowedFields(['id', 'startDate', 'endDate', 'reason', 'createdAt', 'createdBy']) &&
+        data.id is string &&
+        data.startDate is string && isValidDateString(data.startDate) &&
+        data.endDate is string && isValidDateString(data.endDate) &&
+        data.reason is string &&
+        data.createdAt is timestamp &&
+        data.createdBy is string;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+    match /test/{docId} {
+      allow read: if isAuthenticated();
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) && request.resource.data.role == 'student' || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && (isOwner(userId) && request.resource.data.role == resource.data.role || isAdmin());
+    }
+
+    match /studios/{studioId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() && isValidStudio(request.resource.data);
+    }
+
+    match /bookings/{bookingId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && isValidBooking(request.resource.data) && (request.auth.uid == request.resource.data.userId || isAdmin());
+      allow update: if isAuthenticated() && isValidBooking(request.resource.data) && (request.auth.uid == resource.data.userId || isAdmin());
+      allow delete: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+    }
+
+    match /allowed_users/{emailId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() && isValidAllowedUser(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /staff/{staffId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() && isValidStaff(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /blocked_dates/{dateId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin() && isValidBlockedDate(request.resource.data);
+      allow delete: if isAdmin();
+    }
+  }
+}

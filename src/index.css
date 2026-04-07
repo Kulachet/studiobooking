@@ -1,0 +1,66 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-headline: "Plus Jakarta Sans", "Sarabun", sans-serif;
+  --font-body: "Inter", "Sarabun", sans-serif;
+  --font-label: "Inter", "Sarabun", sans-serif;
+
+  --color-primary: #004e9f;
+  --color-on-primary: #ffffff;
+  --color-primary-container: #0066cc;
+  --color-on-primary-container: #dfe8ff;
+  --color-secondary: #8d4f00;
+  --color-on-secondary: #ffffff;
+  --color-secondary-container: #fe9824;
+  --color-on-secondary-container: #663800;
+  --color-tertiary: #005e1c;
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-container: #217830;
+  --color-on-tertiary-container: #a5fda5;
+  --color-error: #ba1a1a;
+  --color-on-error: #ffffff;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+  --color-background: #fcf9f8;
+  --color-on-background: #1c1b1b;
+  --color-surface: #fcf9f8;
+  --color-on-surface: #1c1b1b;
+  --color-surface-variant: #e5e2e1;
+  --color-on-surface-variant: #414753;
+  --color-outline: #727784;
+  --color-outline-variant: #c1c6d5;
+  --color-inverse-surface: #313030;
+  --color-inverse-on-surface: #f3f0ef;
+  --color-inverse-primary: #aac7ff;
+  --color-surface-dim: #dcd9d9;
+  --color-surface-bright: #fcf9f8;
+  --color-surface-container-lowest: #ffffff;
+  --color-surface-container-low: #f6f3f2;
+  --color-surface-container: #f0eded;
+  --color-surface-container-high: #eae7e7;
+  --color-surface-container-highest: #e5e2e1;
+
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1.5rem;
+}
+
+@layer base {
+  body {
+    @apply bg-background text-on-background font-body;
+  }
+}
+
+.bu-diamond-bg {
+  background-color: #fcf9f8;
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0l15 30-15 30L15 30z' fill='%23004e9f' fill-opacity='0.03' fill-rule='evenodd'/%3E%3C/svg%3E");
+}
+
+.glass-header {
+  @apply bg-background/70 backdrop-blur-md;
+}
+
+.primary-gradient {
+  background: linear-gradient(135deg, #004e9f 0%, #0066cc 100%);
+}

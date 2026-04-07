@@ -1,0 +1,123 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["student", "admin"] },
+        "department": { "type": "string" },
+        "phone": { "type": "string" },
+        "position": { "type": "string" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Studio": {
+      "title": "Studio",
+      "description": "Creative space or studio details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string", "enum": ["available", "occupied", "maintenance"] },
+        "image": { "type": "string" }
+      },
+      "required": ["id", "name", "status"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Studio reservation record",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "studioId": { "type": "string" },
+        "studioName": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string", "format": "email" },
+        "date": { "type": "string", "format": "date" },
+        "startTime": { "type": "string" },
+        "endTime": { "type": "string" },
+        "title": { "type": "string" },
+        "notes": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "assignedStaffIds": { "type": "array", "items": { "type": "string" } },
+        "assignedStaffNames": { "type": "array", "items": { "type": "string" } }
+      },
+      "required": ["id", "studioId", "userId", "date", "startTime", "endTime", "status"]
+    },
+    "AllowedUser": {
+      "title": "AllowedUser",
+      "description": "Authorized user for login",
+      "type": "object",
+      "properties": {
+        "code": { "type": "string" },
+        "position": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "department": { "type": "string" }
+      },
+      "required": ["code", "position", "name", "email", "phone", "department"]
+    },
+    "Staff": {
+      "title": "Staff",
+      "description": "Registered staff member",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "inactive"] }
+      },
+      "required": ["id", "name", "email", "status"]
+    },
+    "BlockedDate": {
+      "title": "BlockedDate",
+      "description": "Dates blocked by admin for maintenance or holidays",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "reason": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" }
+      },
+      "required": ["id", "date", "reason", "createdAt", "createdBy"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/studios/{studioId}": {
+      "schema": "Studio",
+      "description": "Available studios"
+    },
+    "/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Studio bookings"
+    },
+    "/allowed_users/{emailId}": {
+      "schema": "AllowedUser",
+      "description": "Authorized users list"
+    },
+    "/staff/{staffId}": {
+      "schema": "Staff",
+      "description": "Registered staff members"
+    },
+    "/blocked_dates/{dateId}": {
+      "schema": "BlockedDate",
+      "description": "Admin blocked dates"
+    }
+  }
+}
