@@ -3,7 +3,7 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/
 import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, onSnapshot, query, where, orderBy, getDocFromServer } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBj8rGAQlVXXzVh2RXLGkcihfdjSJhme40",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: "studiobooking-f993f.firebaseapp.com",
   projectId: "studiobooking-f993f",
   storageBucket: "studiobooking-f993f.firebasestorage.app",

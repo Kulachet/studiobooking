@@ -384,7 +384,7 @@ export default function BookingForm() {
                 <input 
                   className="w-full bg-surface-container-highest border-2 border-transparent rounded-2xl px-6 py-5 focus:border-primary focus:bg-surface-container-lowest transition-all placeholder:text-outline/60 outline-none font-medium" 
                   id="phone" 
-                  placeholder="e.g. 081-234-5678" 
+                  placeholder="e.g. 081-xxx-xxxx" 
                   required 
                   type="tel"
                   value={formData.phone}
