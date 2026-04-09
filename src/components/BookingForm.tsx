@@ -32,12 +32,6 @@ export default function BookingForm() {
     phone: '',
   });
 
-  useEffect(() => {
-    if (profile?.phone && !formData.phone) {
-      setFormData(prev => ({ ...prev, phone: profile.phone || '' }));
-    }
-  }, [profile]);
-
   const [submitting, setSubmitting] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
