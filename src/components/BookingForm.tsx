@@ -6,7 +6,7 @@ import { doc, getDoc, setDoc, collection, addDoc, query, where, onSnapshot, serv
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { useAuth } from '../App';
 import { Studio, Booking, BlockedDate } from '../types';
-import { format } from 'date-fns';
+import { format, parse, isBefore } from 'date-fns';
 import { sendEmail } from '../services/emailService';
 import { getDepartmentName, ADMIN_EMAILS } from '../constants';
 
@@ -95,6 +95,12 @@ export default function BookingForm() {
   }, [studioId, formData.date]);
 
   const isSlotTaken = (start: string) => {
+    if (formData.date) {
+      const slotDateTime = parse(`${formData.date} ${start}`, 'yyyy-MM-dd HH:mm', new Date());
+      if (isBefore(slotDateTime, new Date())) {
+        return true;
+      }
+    }
     return existingBookings.some(b => b.startTime === start);
   };
 
@@ -109,19 +115,17 @@ export default function BookingForm() {
 
   useEffect(() => {
     // If the currently selected slot is taken, try to auto-switch to an available one
-    if (existingBookings.length > 0) {
-      if (isSlotTaken(formData.startTime)) {
-        const availableSlot = TIME_SLOTS.find(s => !isSlotTaken(s.start));
-        if (availableSlot) {
-          setFormData(prev => ({
-            ...prev,
-            startTime: availableSlot.start,
-            endTime: availableSlot.end,
-          }));
-        }
+    if (isSlotTaken(formData.startTime)) {
+      const availableSlot = TIME_SLOTS.find(s => !isSlotTaken(s.start));
+      if (availableSlot) {
+        setFormData(prev => ({
+          ...prev,
+          startTime: availableSlot.start,
+          endTime: availableSlot.end,
+        }));
       }
     }
-  }, [existingBookings, formData.startTime]);
+  }, [existingBookings, formData.date, formData.startTime]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

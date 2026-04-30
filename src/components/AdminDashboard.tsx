@@ -43,10 +43,11 @@ import { sendEmail } from '../services/emailService';
 import { getDepartmentName, ADMIN_EMAILS } from '../constants';
 
 import Papa from 'papaparse';
+import AdminStatistics from './AdminStatistics';
 
 export default function AdminDashboard() {
   const { accessToken, user: firebaseUser, profile, signIn } = useAuth();
-  const [activeTab, setActiveTab] = useState<'bookings' | 'users' | 'blocked'>('bookings');
+  const [activeTab, setActiveTab] = useState<'bookings' | 'users' | 'blocked' | 'statistics'>('bookings');
   const isAdmin = profile?.role === 'admin' || (firebaseUser?.email && ADMIN_EMAILS.includes(firebaseUser.email.toLowerCase()));
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [allowedUsers, setAllowedUsers] = useState<AllowedUser[]>([]);
@@ -362,6 +363,13 @@ export default function AdminDashboard() {
         >
           วันที่ปิด/ไม่ว่าง
           {activeTab === 'blocked' && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />}
+        </button>
+        <button 
+          onClick={() => setActiveTab('statistics')}
+          className={`pb-4 px-2 font-headline font-bold text-sm transition-all relative whitespace-nowrap ${activeTab === 'statistics' ? 'text-primary' : 'text-on-surface/40'}`}
+        >
+          สถิติการใช้งาน
+          {activeTab === 'statistics' && <motion.div layoutId="tab-underline" className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />}
         </button>
       </div>
 
@@ -695,6 +703,17 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'statistics' && (
+          <motion.div 
+            key="statistics"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <AdminStatistics />
           </motion.div>
         )}
       </AnimatePresence>

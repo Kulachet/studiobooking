@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Calendar as CalendarIcon, SlidersHorizontal, Plus, CheckCircle2, XCircle, Lock } from 'lucide-react';
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from 'date-fns';
+import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, isBefore, startOfDay } from 'date-fns';
 import { collection, onSnapshot, query, where, getDocs, setDoc, doc, deleteDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
 import { Booking, Studio, BlockedDate } from '../types';
@@ -51,6 +51,8 @@ export default function Calendar() {
   };
 
   const isDisabled = (date: Date) => {
+    if (isBefore(startOfDay(date), startOfDay(new Date()))) return true;
+    
     const dateStr = format(date, 'yyyy-MM-dd');
     const isBlocked = blockedDates.some(bd => {
       if (bd.startDate && bd.endDate) {
@@ -239,25 +241,33 @@ export default function Calendar() {
                         </p>
                       </div>
                     )}
-                    {!disabled && isCurrentMonth && (
+                    {isCurrentMonth && (
                       <div className="flex flex-col gap-1">
                         {[
                           { start: '09:30', label: '9:30 AM', color: 'bg-primary' },
                           { start: '13:30', label: '1:30 PM', color: 'bg-secondary' }
                         ].map((slot) => {
                           const booking = dayBookings.find(b => b.startTime === slot.start);
+                          if (disabled && !booking) return null;
+                          
+                          const isPastOrDisabled = disabled;
+
                           return (
                             <div 
                               key={slot.label}
                               className={`flex items-center gap-1.5 px-2 py-1 rounded-md border transition-all ${
                                 booking 
-                                  ? `${slot.color}/10 border-${slot.color === 'bg-primary' ? 'primary' : 'secondary'}/20` 
+                                  ? isPastOrDisabled
+                                    ? 'bg-outline/5 border-outline/10 text-on-surface/50 grayscale'
+                                    : `${slot.color}/10 border-${slot.color === 'bg-primary' ? 'primary' : 'secondary'}/20` 
                                   : 'bg-surface-container-high/30 border-transparent opacity-20'
                               }`}
                             >
-                              <span className={`w-1.5 h-1.5 rounded-full ${booking ? slot.color : 'bg-outline/20'}`}></span>
+                              <span className={`w-1.5 h-1.5 rounded-full ${booking ? (isPastOrDisabled ? 'bg-outline/40' : slot.color) : 'bg-outline/20'}`}></span>
                               <span className={`text-[10px] md:text-[12px] font-bold uppercase tracking-tight truncate ${
-                                booking ? (slot.color === 'bg-primary' ? 'text-primary' : 'text-secondary') : 'text-outline/40'
+                                booking 
+                                  ? (isPastOrDisabled ? 'text-on-surface/50' : (slot.color === 'bg-primary' ? 'text-primary' : 'text-secondary')) 
+                                  : 'text-outline/40'
                               }`}>
                                 {slot.label}: {booking ? booking.userName : 'EMPTY'}
                               </span>
