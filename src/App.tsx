@@ -4,7 +4,7 @@ import { onAuthStateChanged, User, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, signInWithGoogle, logOut } from './firebase';
 import { UserProfile, AllowedUser } from './types';
-import { getDepartmentName } from './constants';
+import { getDepartmentName, ADMIN_EMAILS } from './constants';
 import Login from './components/Login';
 import Calendar from './components/Calendar';
 import BookingForm from './components/BookingForm';
@@ -49,7 +49,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
           const emailId = user.email?.toLowerCase().replace(/\./g, '_') || '';
           const allowedDoc = await getDoc(doc(db, 'allowed_users', emailId));
           const allowedData = allowedDoc.exists() ? allowedDoc.data() as AllowedUser : null;
-          const isAdmin = user.email?.toLowerCase() === 'kulachet.l@bu.ac.th';
+          const isAdmin = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
 
           if (!allowedData && !isAdmin) {
             await logOut();
@@ -152,7 +152,8 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   
-  if (profile?.role === 'admin' || profile?.email?.toLowerCase() === 'kulachet.l@bu.ac.th' || isAdminSession) {
+  const isAdmin = profile?.email && ADMIN_EMAILS.includes(profile.email.toLowerCase());
+  if (profile?.role === 'admin' || isAdmin || isAdminSession) {
     return <>{children}</>;
   }
   

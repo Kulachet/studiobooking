@@ -4,7 +4,7 @@ import { Home, Calendar as CalendarIcon, ClipboardList, UserIcon, Menu, HelpCirc
 import { useAuth } from '../App';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { getDepartmentName } from '../constants';
+import { getDepartmentName, ADMIN_EMAILS } from '../constants';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const { profile, signOut } = useAuth();
@@ -17,8 +17,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const handleAdminClick = (e: React.MouseEvent) => {
     e.preventDefault();
+    const isAdminUser = profile?.email && ADMIN_EMAILS.includes(profile.email.toLowerCase());
     const isAdmin = profile?.role === 'admin' || 
-                    profile?.email?.toLowerCase() === 'kulachet.l@bu.ac.th' ||
+                    isAdminUser ||
                     sessionStorage.getItem('admin_auth') === 'true';
     if (isAdmin) {
       navigate('/admin');

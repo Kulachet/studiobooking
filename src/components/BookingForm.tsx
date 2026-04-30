@@ -8,7 +8,7 @@ import { useAuth } from '../App';
 import { Studio, Booking, BlockedDate } from '../types';
 import { format } from 'date-fns';
 import { sendEmail } from '../services/emailService';
-import { getDepartmentName } from '../constants';
+import { getDepartmentName, ADMIN_EMAILS } from '../constants';
 
 export default function BookingForm() {
   const { studioId } = useParams();
@@ -107,6 +107,22 @@ export default function BookingForm() {
     });
   };
 
+  useEffect(() => {
+    // If the currently selected slot is taken, try to auto-switch to an available one
+    if (existingBookings.length > 0) {
+      if (isSlotTaken(formData.startTime)) {
+        const availableSlot = TIME_SLOTS.find(s => !isSlotTaken(s.start));
+        if (availableSlot) {
+          setFormData(prev => ({
+            ...prev,
+            startTime: availableSlot.start,
+            endTime: availableSlot.end,
+          }));
+        }
+      }
+    }
+  }, [existingBookings, formData.startTime]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile || !studio) {
@@ -132,6 +148,13 @@ export default function BookingForm() {
         return (bd as any).date === formData.date;
       })?.reason;
       setError(`ไม่สามารถจองได้ในวันที่เลือก เนื่องจาก: ${reason || 'วันที่นี้ถูกปิดการจองโดยผู้ดูแลระบบ'}`);
+      setSubmitting(false);
+      return;
+    }
+
+    // Check if slot is already taken
+    if (isSlotTaken(formData.startTime)) {
+      setError('ช่วงเวลานี้มีการจองแล้ว กรุณาเลือกช่วงเวลาอื่น');
       setSubmitting(false);
       return;
     }
@@ -168,7 +191,7 @@ export default function BookingForm() {
       
       // Send email to admins
       if (accessToken) {
-        const adminEmails = ['niran.c@bu.ac.th', 'danai.w@bu.ac.th', 'kulachet.l@bu.ac.th'];
+        const adminEmails = ADMIN_EMAILS;
         const subject = `New Studio Booking: ${studio.name} - ${formData.date}`;
         const body = `
           <h2>New Booking Request</h2>
@@ -430,7 +453,7 @@ export default function BookingForm() {
               <div className="pt-6 flex flex-col md:flex-row gap-4">
                 <button 
                   type="submit"
-                  disabled={submitting}
+                  disabled={submitting || isSlotTaken(formData.startTime)}
                   className="primary-gradient flex-1 py-5 rounded-2xl shadow-xl shadow-primary/20 text-on-primary font-headline font-bold text-lg flex items-center justify-center gap-3 active:scale-95 transition-transform duration-200 disabled:opacity-50"
                 >
                   {submitting ? 'Processing...' : 'Confirm Booking'}

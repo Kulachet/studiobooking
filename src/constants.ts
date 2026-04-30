@@ -24,3 +24,13 @@ export const getDepartmentName = (dept: string | undefined): string => {
   if (!dept) return 'Not specified';
   return DEPARTMENT_MAP[dept] || dept;
 };
+
+export const ADMIN_EMAILS = [
+  'danai.w@bu.ac.th',
+  'montri.s@bu.ac.th',
+  'samat.m@bu.ac.th',
+  'kanit.c@bu.ac.th',
+  'nattaphol.p@bu.ac.th',
+  'niran.c@bu.ac.th',
+  'kulachet.l@bu.ac.th'
+];

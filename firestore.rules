@@ -79,7 +79,15 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() &&
-        (request.auth.token.email == "kulachet.l@bu.ac.th" ||
+        (request.auth.token.email in [
+          "danai.w@bu.ac.th",
+          "montri.s@bu.ac.th",
+          "samat.m@bu.ac.th",
+          "kanit.c@bu.ac.th",
+          "nattaphol.p@bu.ac.th",
+          "niran.c@bu.ac.th",
+          "kulachet.l@bu.ac.th"
+        ] ||
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }

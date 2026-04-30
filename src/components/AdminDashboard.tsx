@@ -40,14 +40,14 @@ import { format, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths, addMo
 import { th } from 'date-fns/locale';
 import { useAuth } from '../App';
 import { sendEmail } from '../services/emailService';
-import { getDepartmentName } from '../constants';
+import { getDepartmentName, ADMIN_EMAILS } from '../constants';
 
 import Papa from 'papaparse';
 
 export default function AdminDashboard() {
   const { accessToken, user: firebaseUser, profile, signIn } = useAuth();
   const [activeTab, setActiveTab] = useState<'bookings' | 'users' | 'blocked'>('bookings');
-  const isAdmin = profile?.role === 'admin' || firebaseUser?.email?.toLowerCase() === 'kulachet.l@bu.ac.th';
+  const isAdmin = profile?.role === 'admin' || (firebaseUser?.email && ADMIN_EMAILS.includes(firebaseUser.email.toLowerCase()));
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [allowedUsers, setAllowedUsers] = useState<AllowedUser[]>([]);
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
