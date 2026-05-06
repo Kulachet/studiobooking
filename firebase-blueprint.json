@@ -48,6 +48,8 @@
         "notes": { "type": "string" },
         "status": { "type": "string", "enum": ["pending", "confirmed", "cancelled"] },
         "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "confirmedAt": { "type": "string", "format": "date-time" },
         "assignedStaffIds": { "type": "array", "items": { "type": "string" } },
         "assignedStaffNames": { "type": "array", "items": { "type": "string" } }
       },

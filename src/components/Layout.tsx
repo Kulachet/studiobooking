@@ -4,10 +4,10 @@ import { Home, Calendar as CalendarIcon, ClipboardList, UserIcon, Menu, HelpCirc
 import { useAuth } from '../App';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { getDepartmentName, ADMIN_EMAILS } from '../constants';
+import { getDepartmentName, ADMIN_EMAILS, isUserAdmin } from '../constants';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  const { profile, signOut } = useAuth();
+  const { user: firebaseUser, profile, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -17,13 +17,19 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   const handleAdminClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    const isAdminUser = profile?.email && ADMIN_EMAILS.includes(profile.email.toLowerCase());
+    const isAdminByEmail = isUserAdmin(profile?.email) || isUserAdmin(firebaseUser?.email);
     const isAdmin = profile?.role === 'admin' || 
-                    isAdminUser ||
+                    isAdminByEmail ||
                     sessionStorage.getItem('admin_auth') === 'true';
     if (isAdmin) {
+      console.log('[DEBUG] Admin access granted via:', { 
+        role: profile?.role, 
+        emailAuth: isAdminByEmail, 
+        session: sessionStorage.getItem('admin_auth') === 'true' 
+      });
       navigate('/admin');
     } else {
+      console.log('[DEBUG] Admin access denied, prompting for password. Email:', profile?.email || firebaseUser?.email);
       setShowAdminPrompt(true);
     }
   };

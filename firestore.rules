@@ -2,71 +2,6 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // ===============================================================
-    // Assumed Data Model
-    // ===============================================================
-    //
-    // Collection: users
-    // Document ID: {uid}
-    // Fields:
-    //   - uid: string (required)
-    //   - displayName: string (optional)
-    //   - email: string (required, email format)
-    //   - photoURL: string (optional)
-    //   - role: string (required, 'student' | 'admin')
-    //   - department: string (optional)
-    //   - phone: string (optional)
-    //
-    // Collection: studios
-    // Document ID: {studioId}
-    // Fields:
-    //   - id: string (required)
-    //   - name: string (required)
-    //   - type: string (optional)
-    //   - description: string (optional)
-    //   - status: string (required, 'available' | 'occupied' | 'maintenance')
-    //   - image: string (optional)
-    //
-    // Collection: bookings
-    // Document ID: {bookingId}
-    // Fields:
-    //   - id: string (required)
-    //   - studioId: string (required)
-    //   - studioName: string (required)
-    //   - userId: string (required)
-    //   - userName: string (required)
-    //   - userEmail: string (required, email format)
-    //   - userPhone: string (optional)
-    //   - userDepartment: string (optional)
-    //   - date: string (required, YYYY-MM-DD)
-    //   - startTime: string (required)
-    //   - endTime: string (required)
-    //   - title: string (required)
-    //   - notes: string (optional)
-    //   - status: string (required, 'pending' | 'confirmed' | 'cancelled')
-    //   - createdAt: timestamp (required)
-    //
-    // Collection: allowed_users
-    // Document ID: {emailId}
-    // Fields:
-    //   - code: string (required)
-    //   - position: string (required)
-    //   - name: string (required)
-    //   - email: string (required, email format)
-    //   - phone: string (required)
-    //   - department: string (required)
-    //
-    // Collection: staff
-    // Document ID: {staffId}
-    // Fields:
-    //   - id: string (required)
-    //   - name: string (required)
-    //   - email: string (required, email format)
-    //   - phone: string (optional)
-    //   - status: string (required, 'active' | 'inactive')
-    //
-    // ===============================================================
-
-    // ===============================================================
     // Helper Functions
     // ===============================================================
     function isAuthenticated() {
@@ -77,21 +12,21 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    // แก้ไข: เพิ่มรายชื่อ Admin ทั้งหมด และใช้ toLower() เพื่อป้องกันปัญหาตัวพิมพ์เล็ก-ใหญ่
     function isAdmin() {
-      return isAuthenticated() && (
-        (request.auth.token.email != null && 
-         request.auth.token.email.toLower() in [
-           "danai.w@bu.ac.th",
-           "montri.s@bu.ac.th",
-           "samat.m@bu.ac.th",
-           "kanit.c@bu.ac.th",
-           "nattaphol.p@bu.ac.th",
-           "niran.c@bu.ac.th",
-           "kulachet.l@bu.ac.th"
-         ]) ||
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin')
-      );
+      return isAuthenticated() &&
+        request.auth.token.email != null &&
+        (request.auth.token.email.toLower() in [
+          "danai.w@bu.ac.th",
+          "montri.s@bu.ac.th",
+          "samat.m@bu.ac.th",
+          "kanit.c@bu.ac.th",
+          "nattaphol.p@bu.ac.th",
+          "niran.c@bu.ac.th",
+          "kulachet.l@bu.ac.th",
+          "ldo@bu.ac.th"
+        ] || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
 
     function isValidEmail(email) {
@@ -124,7 +59,8 @@ service cloud.firestore {
     }
 
     function isValidBooking(data) {
-      return hasOnlyAllowedFields(['id', 'studioId', 'studioName', 'userId', 'userName', 'userEmail', 'userPhone', 'userDepartment', 'date', 'startTime', 'endTime', 'title', 'notes', 'status', 'createdAt', 'updatedAt', 'assignedStaffIds', 'assignedStaffNames', 'assignedStaffId', 'assignedStaffName', 'userCode', 'userPosition']) &&
+      // แก้ไข: เพิ่ม 'confirmedAt' เข้าไปในรายการฟิลด์ที่อนุญาต
+      return hasOnlyAllowedFields(['id', 'studioId', 'studioName', 'userId', 'userName', 'userEmail', 'userPhone', 'userDepartment', 'date', 'startTime', 'endTime', 'title', 'notes', 'status', 'createdAt', 'updatedAt', 'confirmedAt', 'assignedStaffIds', 'assignedStaffNames', 'assignedStaffId', 'assignedStaffName', 'userCode', 'userPosition']) &&
         data.id is string &&
         data.studioId is string &&
         data.studioName is string &&
@@ -143,6 +79,7 @@ service cloud.firestore {
         data.status in ['pending', 'confirmed', 'cancelled'] &&
         data.createdAt is timestamp &&
         (!('updatedAt' in data) || data.updatedAt is timestamp) &&
+        (!('confirmedAt' in data) || data.confirmedAt is timestamp) &&
         (!('assignedStaffIds' in data) || data.assignedStaffIds is list) &&
         (!('assignedStaffNames' in data) || data.assignedStaffNames is list) &&
         (!('assignedStaffId' in data) || data.assignedStaffId is string) &&

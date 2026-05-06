@@ -4,7 +4,7 @@ import { onAuthStateChanged, User, GoogleAuthProvider } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, signInWithGoogle, logOut } from './firebase';
 import { UserProfile, AllowedUser } from './types';
-import { getDepartmentName, ADMIN_EMAILS } from './constants';
+import { getDepartmentName, ADMIN_EMAILS, isUserAdmin } from './constants';
 import Login from './components/Login';
 import Calendar from './components/Calendar';
 import BookingForm from './components/BookingForm';
@@ -49,7 +49,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
           const emailId = user.email?.toLowerCase().replace(/\./g, '_') || '';
           const allowedDoc = await getDoc(doc(db, 'allowed_users', emailId));
           const allowedData = allowedDoc.exists() ? allowedDoc.data() as AllowedUser : null;
-          const isAdmin = user.email && ADMIN_EMAILS.includes(user.email.toLowerCase());
+          const isAdmin = isUserAdmin(user.email);
 
           if (!allowedData && !isAdmin) {
             await logOut();
@@ -80,13 +80,15 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
               existingProfile.department !== updatedProfile.department ||
               existingProfile.phone !== updatedProfile.phone ||
               existingProfile.position !== updatedProfile.position ||
-              existingProfile.code !== updatedProfile.code) {
+              existingProfile.code !== updatedProfile.code ||
+              existingProfile.role !== updatedProfile.role) {
             try {
+              console.log('[DEBUG] Syncing user profile to Firestore...', user.uid);
               await setDoc(doc(db, 'users', user.uid), updatedProfile, { merge: true });
+              console.log('[DEBUG] User profile synced successfully');
             } catch (err) {
-              console.error('Failed to update user profile in Firestore:', err);
-              // We continue even if this fails, so the user can still use the app.
-              // This can happen if Firestore rules are not updated yet.
+              console.error('[DEBUG] Failed to update user profile in Firestore:', err);
+              console.warn('[DEBUG] This usually means Firestore rules denied the write for your UID. Role sync might be skipped.');
             }
           }
 
@@ -152,7 +154,7 @@ function AdminRoute({ children }: { children: React.ReactNode }) {
   
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   
-  const isAdmin = profile?.email && ADMIN_EMAILS.includes(profile.email.toLowerCase());
+  const isAdmin = isUserAdmin(profile?.email);
   if (profile?.role === 'admin' || isAdmin || isAdminSession) {
     return <>{children}</>;
   }

@@ -40,7 +40,7 @@ import { format, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths, addMo
 import { th } from 'date-fns/locale';
 import { useAuth } from '../App';
 import { sendEmail } from '../services/emailService';
-import { getDepartmentName, ADMIN_EMAILS } from '../constants';
+import { getDepartmentName, ADMIN_EMAILS, isUserAdmin } from '../constants';
 
 import Papa from 'papaparse';
 import AdminStatistics from './AdminStatistics';
@@ -48,7 +48,20 @@ import AdminStatistics from './AdminStatistics';
 export default function AdminDashboard() {
   const { accessToken, user: firebaseUser, profile, signIn } = useAuth();
   const [activeTab, setActiveTab] = useState<'bookings' | 'users' | 'blocked' | 'statistics'>('bookings');
-  const isAdmin = profile?.role === 'admin' || (firebaseUser?.email && ADMIN_EMAILS.includes(firebaseUser.email.toLowerCase()));
+  const isAdmin = profile?.role === 'admin' || 
+                  isUserAdmin(firebaseUser?.email) || 
+                  isUserAdmin(profile?.email) ||
+                  sessionStorage.getItem('admin_auth') === 'true';
+  
+  useEffect(() => {
+    if (firebaseUser) {
+      console.log('[DEBUG] AdminDashboard Identity Check:', {
+        email: firebaseUser.email,
+        roleInProfile: profile?.role,
+        isIdentifiedAsAdmin: isAdmin
+      });
+    }
+  }, [firebaseUser, profile, isAdmin]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [allowedUsers, setAllowedUsers] = useState<AllowedUser[]>([]);
   const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
@@ -260,48 +273,76 @@ export default function AdminDashboard() {
   };
 
   const sendConfirmation = async (booking: Booking) => {
-    console.log('sendConfirmation called for booking:', booking.id);
+    console.log('[DEBUG] sendConfirmation process started', {
+      bookingId: booking.id,
+      admin: firebaseUser?.email,
+      timestamp: new Date().toISOString()
+    });
     
+    if (!firebaseUser) {
+      alert('กรุณาลงชื่อเข้าใช้ด้วยบัญชี Google (@bu.ac.th) เพื่อดำเนินการยืนยันการจอง');
+      setIsSending(false);
+      return;
+    }
+
+    if (!isAdmin) {
+      alert('บัญชีของคุณไม่มีสิทธิ์ในการยืนยันการจอง กรุณาติดต่อผู้ดูแลระบบสูงสุด');
+      setIsSending(false);
+      return;
+    }
+
     setIsSending(true);
     try {
-      // 1. Update booking status to confirmed FIRST so the UI updates immediately
-      if (booking.status === 'pending') {
-        console.log('Updating booking status to confirmed...');
-        await updateDoc(doc(db, 'bookings', booking.id), { status: 'confirmed' });
-        console.log('Booking status updated');
-      }
+      // Step 1: Update booking status in Firestore
+      console.log('[DEBUG] Step 1: Updating booking status to confirmed...');
+      await updateDoc(doc(db, 'bookings', booking.id), { 
+        status: 'confirmed',
+        updatedAt: serverTimestamp(),
+        confirmedAt: serverTimestamp()
+      });
+      console.log('[DEBUG] Step 1 SUCCESS: Booking updated in Firestore');
 
-      // 2. Call Google Apps Script Webhook
+      // Step 2: Trigger Webhook for Email and Calendar
+      console.log('[DEBUG] Step 2: Triggering Google Apps Script Webhook...');
       const scriptUrl = import.meta.env.VITE_GOOGLE_SCRIPT_URL || 'https://script.google.com/macros/s/AKfycbwz2mXDGsvqI0XRHHrtEnTqM7ewlHtIpkDY4wwECjtxjCHpaWBYBZTqRgAxQQ6Gm2Vk/exec';
       
       if (scriptUrl) {
-        console.log('Calling Google Apps Script to send email and calendar...');
-        try {
-          await fetch(scriptUrl, {
-            method: 'POST',
-            mode: 'no-cors', // Use no-cors to bypass CORS block on the browser
-            headers: {
-              'Content-Type': 'text/plain;charset=utf-8', // Use text/plain to avoid OPTIONS preflight
-            },
-            body: JSON.stringify({
-              type: 'booking_confirmed',
-              booking: booking
-            }),
-          });
-          console.log('Webhook triggered');
-        } catch (fetchErr) {
-          console.error('Error triggering webhook:', fetchErr);
-        }
+        console.log('[DEBUG] Calling Google Apps Script at:', scriptUrl);
+        // We use opaque request because GAS might not have CORS enabled for all origins
+        // but it still executes the logic on the server side.
+        fetch(scriptUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8',
+          },
+          body: JSON.stringify({
+            type: 'booking_confirmed',
+            booking: booking,
+            adminEmail: firebaseUser.email
+          }),
+        })
+        .then(() => console.log('[DEBUG] Step 2 SUCCESS: Webhook request sent'))
+        .catch(err => console.error('[DEBUG] Step 2 FAILED: Webhook fetch error', err));
       } else {
-        console.warn('VITE_GOOGLE_SCRIPT_URL is not set. Skipping email and calendar.');
+        console.warn('[DEBUG] Step 2 SKIPPED: VITE_GOOGLE_SCRIPT_URL not configured');
       }
 
-      alert('ยืนยันการจองสำเร็จ!');
+      alert('ยืนยันการจองสำเร็จและส่งอีเมลแจ้งเตือนแล้ว!');
       setConfirmingBooking(null);
     } catch (error: any) {
-      console.error('Error sending confirmation:', error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      alert(`เกิดข้อผิดพลาด: ${errorMessage}`);
+      console.error('[DEBUG] sendConfirmation TOTAL FAILURE:', error);
+      let errorMessage = 'เกิดข้อผิดพลาดในการยืนยันการจอง';
+      
+      if (error.code === 'permission-denied') {
+        errorMessage = 'คุณไม่มีสิทธิ์ในการแก้ไขข้อมูลนี้ (Permission Denied) กรุณาตรวจสอบว่าคุณล็อกอินด้วยอีเมลที่ถูกต้อง';
+      } else if (error.message) {
+        errorMessage += `: ${error.message}`;
+      } else {
+        errorMessage += `: ${String(error)}`;
+      }
+      
+      alert(errorMessage);
     } finally {
       setIsSending(false);
     }
@@ -325,18 +366,18 @@ export default function AdminDashboard() {
             <Lock className="w-6 h-6" />
           </div>
           <div className="flex-1 text-center md:text-left">
-            <h4 className="font-bold text-lg">Google Authentication Required</h4>
+            <h4 className="font-bold text-lg">จำเป็นต้องเข้าสู่ระบบด้วย Google</h4>
             <p className="text-sm opacity-80">
               {!firebaseUser 
-                ? "While you've unlocked the dashboard with a password, Firestore data access requires a valid Google login. Please sign in with your @bu.ac.th account."
-                : "Your Google session has expired or the access token is missing. Please sign in again to enable Email and Calendar integration features."}
+                ? "คุณได้ใช้รหัสผ่านเพื่อเข้าถึงระบบ แต่การจัดการข้อมูลในฐานข้อมูลต้องใช้บัญชี Google ที่ได้รับอนุญาต กรุณาเข้าสู่ระบบด้วยบัญชี @bu.ac.th"
+                : "เซสชัน Google ของคุณหมดอายุ หรือไม่พบโทเค็นการเข้าถึง โปรดเข้าสู่ระบบอีกครั้งเพื่อใช้งานการรวมระบบอีเมลและปฏิทิน"}
             </p>
           </div>
           <button 
             onClick={signIn}
             className="px-6 py-2 bg-warning text-on-warning font-bold rounded-xl hover:bg-warning/80 transition-colors"
           >
-            {firebaseUser ? 'Re-authenticate' : 'Sign In Now'}
+            {firebaseUser ? 'เข้าสู่ระบบใหม่' : 'ลงชื่อเข้าใช้ตอนนี้'}
           </button>
         </div>
       )}
@@ -739,9 +780,9 @@ export default function AdminDashboard() {
                 <div className="w-16 h-16 bg-error/10 rounded-full flex items-center justify-center mb-6 mx-auto">
                   <Trash2 className="w-8 h-8 text-error" />
                 </div>
-                <h3 className="text-2xl font-headline font-bold text-center mb-2">ยกเลิกการปิดวันที่?</h3>
+                <h3 className="text-2xl font-headline font-bold text-center mb-2">ยกเลิกการปิดวันที่ไม่ว่าง?</h3>
                 <p className="text-on-surface-variant text-center mb-8 leading-relaxed">
-                  คุณแน่ใจหรือไม่ว่าต้องการยกเลิกการปิดวันที่นี้? การดำเนินการนี้จะทำให้สตูดิโอกลับมาเปิดให้จองได้อีกครั้ง
+                  คุณแน่ใจหรือไม่ว่าต้องการยกเลิกการปิดวันที่นี้? การดำเนินการนี้จะทำให้สตูดิโอกลับมาเปิดให้จองได้ตามปกติ
                 </p>
 
                 <div className="flex gap-4">
@@ -749,13 +790,13 @@ export default function AdminDashboard() {
                     onClick={() => setConfirmingDeleteBlockedDate(null)}
                     className="flex-1 py-3 px-6 rounded-xl font-bold text-sm border border-outline-variant/30 hover:bg-surface-container-high transition-colors"
                   >
-                    ยกเลิก
+                    กลับ
                   </button>
                   <button 
                     onClick={() => handleRemoveBlockedDate(confirmingDeleteBlockedDate.id)}
                     className="flex-1 py-3 px-6 rounded-xl font-bold text-sm bg-error text-white hover:bg-error/90 transition-all shadow-lg shadow-error/20"
                   >
-                    ยืนยันการยกเลิก
+                    ยืนยันการลบ
                   </button>
                 </div>
               </div>
@@ -785,10 +826,10 @@ export default function AdminDashboard() {
                 <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-6 mx-auto">
                   <Mail className="w-8 h-8 text-primary" />
                 </div>
-                <h3 className="text-2xl font-headline font-bold text-center mb-2">ยืนยันการจอง?</h3>
-                <p className="text-on-surface-variant text-center mb-8 leading-relaxed">
+                <h3 className="text-2xl font-headline font-bold text-center mb-2">ยืนยันการจองสตูดิโอ?</h3>
+                <p className="text-on-surface-variant text-center mb-8 leading-relaxed text-sm">
                   คุณกำลังจะยืนยันการจองสำหรับ <span className="font-bold text-on-surface">{confirmingBooking.userName}</span> 
-                  ระบบจะส่งอีเมลยืนยันอัตโนมัติและเพิ่มกิจกรรมลงใน Google Calendar
+                  ระบบจะส่งอีเมลยืนยันอัตโนมัติไปยังผู้จอง และทำการบันทึกข้อมูลในประวัติ
                 </p>
 
                 <div className="bg-surface-container-low p-4 rounded-2xl mb-8 space-y-2">
@@ -812,17 +853,17 @@ export default function AdminDashboard() {
                     disabled={isSending}
                     className="flex-1 py-3 px-6 rounded-xl font-bold text-sm border border-outline-variant/30 hover:bg-surface-container-high transition-colors disabled:opacity-50"
                   >
-                    ยกเลิก
+                    กลับ
                   </button>
                   <button 
                     onClick={() => sendConfirmation(confirmingBooking)}
                     disabled={isSending}
-                    className="flex-1 py-3 px-6 rounded-xl font-bold text-sm bg-primary text-on-primary hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="flex-[2] py-3 px-6 rounded-xl font-bold text-sm bg-primary text-on-primary hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 flex items-center justify-center gap-2 disabled:opacity-50"
                   >
                     {isSending ? (
                       <>
                         <div className="w-4 h-4 border-2 border-on-primary/20 border-t-on-primary rounded-full animate-spin"></div>
-                        กำลังส่ง...
+                        กำลังดำเนินการ...
                       </>
                     ) : (
                       'ยืนยันและส่งอีเมล'

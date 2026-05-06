@@ -32,5 +32,16 @@ export const ADMIN_EMAILS = [
   'kanit.c@bu.ac.th',
   'nattaphol.p@bu.ac.th',
   'niran.c@bu.ac.th',
-  'kulachet.l@bu.ac.th'
+  'kulachet.l@bu.ac.th',
+  'ldo@bu.ac.th'
 ];
+
+/**
+ * Checks if an email belongs to an administrator.
+ * Normalizes both input and list for maximum robustness.
+ */
+export const isUserAdmin = (email: string | null | undefined): boolean => {
+  if (!email) return false;
+  const normalized = email.trim().toLowerCase();
+  return ADMIN_EMAILS.map(e => e.toLowerCase()).includes(normalized);
+};
